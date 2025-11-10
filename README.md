@@ -1,7 +1,3 @@
-Perfecto 👌 — dado que tu repositorio se llama **`simple-comparer`**, aquí tienes la versión ajustada de la descripción y el texto largo (para el README o la cabecera de GitHub):
-
----
-
 ### 🧩 **Simple Comparer – OpenAI Model Evaluator**
 
 An interactive **FastAPI + Tailwind + Chart.js** web app to **compare OpenAI models side-by-side**.
