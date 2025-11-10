@@ -1,0 +1,11 @@
+# Server & templates
+fastapi
+uvicorn
+jinja2
+
+# OpenAI SDK (v1+)
+openai
+
+# Optional: if you’ll call OpenAI via AISuite (auto-fallback in code)
+aisuite
+dotenv
