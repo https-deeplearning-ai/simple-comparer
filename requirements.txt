@@ -1,6 +1,7 @@
 # Server & templates
 fastapi
 uvicorn
+gunicorn
 jinja2
 
 # OpenAI SDK (v1+)
