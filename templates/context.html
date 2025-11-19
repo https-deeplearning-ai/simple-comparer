@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>{{ app_name }} – Context Window Visualizer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Colors por tipo de segmento */
+    .seg-system    { background: #e5e7eb; } /* gray-200 */
+    .seg-user      { background: #bfdbfe; } /* blue-200 */
+    .seg-assistant { background: #bbf7d0; } /* green-200 */
+    .seg-web       { background: #fed7aa; } /* orange-200 */
+    .seg-retrieved { background: #f9a8d4; } /* pink-300 */
+    .seg-other     { background: #ddd6fe; } /* violet-200 */
+
+    .seg-block {
+      height: 1.75rem;
+      border-radius: 9999px;
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.1s ease, opacity 0.15s ease;
+    }
+
+    .seg-block:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.18);
+    }
+
+    .seg-block.selected {
+      outline: 2px solid rgba(15, 118, 110, 0.9); /* teal-700 */
+      outline-offset: 2px;
+    }
+
+    .badge-pill {
+      border-radius: 9999px;
+      padding: 0.15rem 0.55rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <div class="max-w-5xl mx-auto p-6">
+    <!-- Header -->
+    <header class="mb-6 flex flex-col sm:flex-row items-center sm:items-end justify-between gap-3">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-2xl bg-teal-600 flex items-center justify-center shadow-md">
+          <span class="text-white font-bold text-xl">C</span>
+        </div>
+        <div>
+          <h1 class="text-3xl font-extrabold tracking-tight text-gray-900">
+            Context Window Visualizer <span class="text-teal-600">– OpenAI</span>
+          </h1>
+          <p class="text-gray-600 text-sm sm:text-base mt-1">
+            See how the context window fills up by segment type, with LLM-based previews and optional decay simulation.
+          </p>
+        </div>
+      </div>
+    </header>
+
+    <!-- Controls -->
+    <section class="bg-white rounded-2xl shadow p-5 border border-gray-100 mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Model / tokenizer -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Model / tokenizer
+          </label>
+          <select
+            id="ctx-model"
+            class="w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm p-2.5"
+          >
+            <option value="gpt-4o-mini" selected>gpt-4o-mini (128k)</option>
+            <option value="gpt-4.1-mini">gpt-4.1-mini (128k)</option>
+            <option value="gpt-4o">gpt-4o (128k)</option>
+            <option value="gpt-4.1">gpt-4.1 (128k)</option>
+          </select>
+          <p class="mt-1 text-[11px] text-gray-500">
+            Used for both tokenization and optional segment previews.
+          </p>
+        </div>
+
+        <!-- Max context tokens -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Max context tokens
+          </label>
+          <input
+            id="ctx-max-tokens"
+            type="number"
+            min="512"
+            max="128000"
+            step="512"
+            value="8000"
+            class="w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm p-2.5"
+          />
+          <p class="mt-1 text-[11px] text-gray-500">
+            For visualization; does not change the actual model limit.
+          </p>
+        </div>
+
+        <!-- Toggles -->
+        <div class="flex flex-col gap-2 mt-1">
+          <label class="inline-flex items-center gap-2 text-xs text-gray-700">
+            <input id="ctx-use-llm" type="checkbox" class="rounded border-gray-300 text-teal-600 focus:ring-teal-500" checked />
+            <span>Use LLM to generate short previews per segment</span>
+          </label>
+          <label class="inline-flex items-center gap-2 text-xs text-gray-700">
+            <input id="ctx-decay" type="checkbox" class="rounded border-gray-300 text-teal-600 focus:ring-teal-500" checked />
+            <span>Simulate recency-based context rot (decay)</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Example scenarios + manual context -->
+      <div class="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <!-- Example scenarios -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Example scenarios
+          </label>
+          <select
+            id="ctx-scenario"
+            class="w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm p-2.5"
+          >
+            <option value="rag_diffusion" selected>RAG with web + retrieved docs</option>
+            <option value="chatbot_support">Customer support chatbot (multi-turn)</option>
+            <option value="coding_session">Interactive coding assistant session</option>
+            <option value="long_system_prompt">Huge system prompt + few user turns</option>
+            <option value="only_manual">Ignore scenario (use manual context only)</option>
+          </select>
+          <p class="mt-1 text-[11px] text-gray-500">
+            Choose a pre-built conversation. If you paste manual context, that will override the scenario (except "Ignore scenario").
+          </p>
+        </div>
+
+        <!-- Manual context -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Manual context (optional, treated as a single user segment)
+          </label>
+          <textarea
+            id="ctx-manual"
+            rows="3"
+            class="w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm p-3"
+            placeholder="Paste a complete conversation, system prompt, or chunk of text here to simulate it as one user segment..."
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="mt-4 flex items-center justify-between gap-3">
+        <button
+          id="btn-analyze-ctx"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-600 text-white hover:bg-teal-700 text-sm font-medium shadow-sm disabled:opacity-60 disabled:cursor-default"
+        >
+          <span>Analyze context window</span>
+        </button>
+        <div id="ctx-status" class="text-xs text-gray-500 min-h-[1.5rem] text-right"></div>
+      </div>
+    </section>
+
+    <!-- Main visualization -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <!-- Context window usage -->
+      <div class="bg-white rounded-2xl shadow p-5 border border-gray-100">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h2 class="text-sm font-semibold text-gray-800 uppercase tracking-wide">
+              Context window usage
+            </h2>
+            <p id="ctx-usage-text" class="text-xs text-gray-500">
+              No data yet.
+            </p>
+          </div>
+          <span
+            id="ctx-usage-badge"
+            class="badge-pill bg-gray-100 text-gray-700 border border-gray-200"
+          >
+            0 / 0 tokens
+          </span>
+        </div>
+
+        <!-- Progress bar / segments -->
+        <div class="border border-gray-200 rounded-2xl bg-slate-50 px-3 py-4">
+          <div id="ctx-bar" class="flex w-full gap-0.5 overflow-hidden rounded-full bg-gray-100"></div>
+          <p class="text-[11px] text-gray-400 mt-2">
+            Hover or click on blocks to inspect each segment. Opacity reflects recency-based decay when enabled.
+          </p>
+        </div>
+
+        <!-- Token breakdown -->
+        <div class="mt-4">
+          <h3 class="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">
+            Token breakdown
+          </h3>
+          <dl id="ctx-breakdown" class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-700">
+            <!-- Filled by JS -->
+          </dl>
+        </div>
+
+        <!-- Context rot explanation -->
+        <div class="mt-4">
+          <h3 class="text-xs font-semibold text-gray-700 mb-1">
+            Context rot (decay)
+          </h3>
+          <p id="ctx-rot-expl" class="text-xs text-gray-600 whitespace-pre-wrap">
+            –
+          </p>
+        </div>
+      </div>
+
+      <!-- Segment list / details -->
+      <div class="bg-white rounded-2xl shadow p-5 border border-gray-100 flex flex-col gap-4">
+        <!-- Selected segment summary -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-sm font-semibold text-gray-800 uppercase tracking-wide">
+              Selected segment
+            </h2>
+            <span id="ctx-selected-badge" class="badge-pill bg-gray-100 text-gray-700 border border-gray-200">
+              None
+            </span>
+          </div>
+          <div
+            id="ctx-selected-panel"
+            class="border border-gray-100 rounded-xl bg-slate-50 px-3 py-3 text-xs text-gray-700 min-h-[80px] whitespace-pre-wrap"
+          >
+            Click a block in the context bar or a row in the list below to inspect that segment.
+          </div>
+        </div>
+
+        <!-- Segment list -->
+        <div class="flex-1 min-h-[120px] border border-gray-100 rounded-xl bg-white overflow-y-auto">
+          <table class="min-w-full text-xs">
+            <thead class="bg-gray-50 border-b border-gray-100 sticky top-0 z-10">
+              <tr>
+                <th class="px-3 py-2 text-left font-semibold text-gray-500">Type</th>
+                <th class="px-3 py-2 text-left font-semibold text-gray-500">ID</th>
+                <th class="px-3 py-2 text-left font-semibold text-gray-500">Tokens</th>
+                <th class="px-3 py-2 text-left font-semibold text-gray-500">Decay</th>
+                <th class="px-3 py-2 text-left font-semibold text-gray-500">Preview</th>
+              </tr>
+            </thead>
+            <tbody id="ctx-seg-table" class="divide-y divide-gray-100">
+              <!-- Filled by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const modelEl = document.getElementById("ctx-model");
+    const maxTokensEl = document.getElementById("ctx-max-tokens");
+    const useLlmEl = document.getElementById("ctx-use-llm");
+    const decayEl = document.getElementById("ctx-decay");
+    const scenarioEl = document.getElementById("ctx-scenario");
+    const manualEl = document.getElementById("ctx-manual");
+    const btnAnalyze = document.getElementById("btn-analyze-ctx");
+    const statusEl = document.getElementById("ctx-status");
+
+    const usageTextEl = document.getElementById("ctx-usage-text");
+    const usageBadgeEl = document.getElementById("ctx-usage-badge");
+    const barEl = document.getElementById("ctx-bar");
+    const breakdownEl = document.getElementById("ctx-breakdown");
+    const rotExplEl = document.getElementById("ctx-rot-expl");
+
+    const selectedBadgeEl = document.getElementById("ctx-selected-badge");
+    const selectedPanelEl = document.getElementById("ctx-selected-panel");
+    const segTableEl = document.getElementById("ctx-seg-table");
+
+    let currentSegments = [];
+    let selectedSegmentId = null;
+
+    btnAnalyze.addEventListener("click", async () => {
+      const model = modelEl.value || "gpt-4o-mini";
+      const maxTokens = parseInt(maxTokensEl.value, 10) || 8000;
+      const use_llm = !!useLlmEl.checked;
+      const simulate_decay = !!decayEl.checked;
+      const scenario_id = scenarioEl.value || "rag_diffusion";
+      const manual_context_raw = manualEl.value.trim();
+      const manual_context =
+        scenario_id === "only_manual" ? manual_context_raw : (manual_context_raw || null);
+
+      btnAnalyze.disabled = true;
+      statusEl.textContent = "Analyzing context window...";
+      statusEl.classList.remove("text-red-600");
+      statusEl.classList.add("text-gray-500");
+
+      try {
+        const res = await fetch("/context-viz/analyze", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model,
+            max_tokens: maxTokens,
+            use_llm_previews: use_llm,
+            simulate_decay,
+            scenario_id,
+            manual_context
+          })
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        renderContextViz(data);
+        statusEl.textContent = "Done.";
+        statusEl.classList.remove("text-red-600");
+        statusEl.classList.add("text-gray-500");
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "Error: " + err.message;
+        statusEl.classList.remove("text-gray-500");
+        statusEl.classList.add("text-red-600");
+        renderEmpty();
+      } finally {
+        btnAnalyze.disabled = false;
+      }
+    });
+
+    function renderEmpty() {
+      currentSegments = [];
+      selectedSegmentId = null;
+      barEl.innerHTML = "";
+      segTableEl.innerHTML = "";
+      usageTextEl.textContent = "No data.";
+      usageBadgeEl.textContent = "0 / 0 tokens";
+      usageBadgeEl.className =
+        "badge-pill bg-gray-100 text-gray-700 border border-gray-200";
+      breakdownEl.innerHTML = "";
+      rotExplEl.textContent = "–";
+      selectedBadgeEl.textContent = "None";
+      selectedBadgeEl.className =
+        "badge-pill bg-gray-100 text-gray-700 border border-gray-200";
+      selectedPanelEl.textContent =
+        "Click a block in the context bar or a row in the list below to inspect that segment.";
+    }
+
+    function renderContextViz(data) {
+      const maxTokens = data.max_tokens || 0;
+      const totalTokens = data.total_tokens || 0;
+      const usagePct = (data.usage_pct || 0) * 100;
+
+      currentSegments = Array.isArray(data.segments) ? data.segments : [];
+      selectedSegmentId = null;
+
+      // Usage text
+      usageTextEl.textContent = `${totalTokens} / ${maxTokens} tokens used (${usagePct.toFixed(
+        1
+      )}%)`;
+      usageBadgeEl.textContent = `${totalTokens} / ${maxTokens}`;
+      usageBadgeEl.className =
+        "badge-pill border border-gray-200 " +
+        (usagePct < 50
+          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+          : usagePct < 90
+          ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+          : "bg-red-50 text-red-700 border-red-200");
+
+      // Context bar
+      barEl.innerHTML = "";
+      if (!currentSegments.length || !maxTokens) {
+        const emptyDiv = document.createElement("div");
+        emptyDiv.className = "w-full text-[11px] text-gray-400 text-center py-1";
+        emptyDiv.textContent = "No segments to display.";
+        barEl.appendChild(emptyDiv);
+      } else {
+        currentSegments.forEach((seg) => {
+          const widthPct = Math.max(
+            1,
+            Math.min(100, (seg.tokens / maxTokens) * 100)
+          ); // mínimo 1% para que se vea algo
+
+          const div = document.createElement("div");
+          div.className =
+            "seg-block " +
+            segClass(seg.type);
+          div.style.width = widthPct + "%";
+
+          // Opacidad basada en decay_weight si viene
+          const dw = typeof seg.decay_weight === "number" ? seg.decay_weight : 1;
+          const clampedDw = Math.max(0.15, Math.min(1, dw));
+          div.style.opacity = String(clampedDw);
+
+          div.title = `${seg.type.toUpperCase()} – ${seg.tokens} tokens`;
+
+          div.dataset.segId = seg.id;
+
+          div.addEventListener("click", () => {
+            selectSegment(seg.id);
+          });
+
+          barEl.appendChild(div);
+        });
+      }
+
+      // Breakdown
+      breakdownEl.innerHTML = "";
+      const breakdown = data.token_breakdown || {};
+      const order = ["system", "user", "assistant", "web", "retrieved", "other"];
+      order.forEach((k) => {
+        const v = breakdown[k] || 0;
+        const dt = document.createElement("dt");
+        const dd = document.createElement("dd");
+        dt.textContent = k;
+        dt.className = "text-gray-500";
+        dd.textContent = `${v} tokens`;
+        dd.className = "font-medium text-gray-800";
+        breakdownEl.appendChild(dt);
+        breakdownEl.appendChild(dd);
+      });
+
+      // Context rot explanation
+      rotExplEl.textContent =
+        data.context_rot_explanation ||
+        "Context rot refers to older parts of the context becoming less influential as newer tokens are added.";
+
+      // Segment table
+      segTableEl.innerHTML = "";
+      if (!currentSegments.length) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 5;
+        td.className = "px-3 py-3 text-center text-gray-400";
+        td.textContent = "No segments in current scenario.";
+        tr.appendChild(td);
+        segTableEl.appendChild(tr);
+      } else {
+        currentSegments.forEach((seg) => {
+          const tr = document.createElement("tr");
+          tr.className =
+            "hover:bg-slate-50 cursor-pointer transition-colors";
+          tr.dataset.segId = seg.id;
+
+          const tdType = document.createElement("td");
+          tdType.className = "px-3 py-2 align-top";
+          tdType.innerHTML = `<span class="badge-pill ${segBadgeClass(
+            seg.type
+          )}">${seg.type}</span>`;
+
+          const tdId = document.createElement("td");
+          tdId.className = "px-3 py-2 align-top text-gray-700";
+          tdId.textContent = seg.id || "-";
+
+          const tdTokens = document.createElement("td");
+          tdTokens.className = "px-3 py-2 align-top text-gray-700";
+          tdTokens.textContent = seg.tokens ?? "-";
+
+          const tdDecay = document.createElement("td");
+          tdDecay.className = "px-3 py-2 align-top text-gray-700";
+          const dw =
+            typeof seg.decay_weight === "number"
+              ? seg.decay_weight.toFixed(2)
+              : "–";
+          tdDecay.textContent = dw;
+
+          const tdPreview = document.createElement("td");
+          tdPreview.className = "px-3 py-2 align-top text-gray-500 max-w-[200px]";
+          tdPreview.textContent = seg.preview || "(no preview)";
+
+          tr.appendChild(tdType);
+          tr.appendChild(tdId);
+          tr.appendChild(tdTokens);
+          tr.appendChild(tdDecay);
+          tr.appendChild(tdPreview);
+
+          tr.addEventListener("click", () => {
+            selectSegment(seg.id);
+          });
+
+          segTableEl.appendChild(tr);
+        });
+      }
+
+      // Clear selected
+      selectedSegmentId = null;
+      selectedBadgeEl.textContent = "None";
+      selectedBadgeEl.className =
+        "badge-pill bg-gray-100 text-gray-700 border border-gray-200";
+      selectedPanelEl.textContent =
+        "Click a block in the context bar or a row in the list below to inspect that segment.";
+
+      // Remove any 'selected' class from blocks
+      Array.from(barEl.children).forEach((child) => {
+        child.classList.remove("selected");
+      });
+    }
+
+    function selectSegment(segId) {
+      const seg = currentSegments.find((s) => s.id === segId);
+      if (!seg) return;
+
+      selectedSegmentId = segId;
+
+      // Update selected badge
+      selectedBadgeEl.textContent = `${seg.type.toUpperCase()} · ${seg.tokens} tokens`;
+      selectedBadgeEl.className =
+        "badge-pill border " + segBadgeClass(seg.type);
+
+      // Update selected panel
+      const header = `[${seg.type.toUpperCase()} – ${seg.role || "role"} – ${seg.id}] `
+        + `${seg.tokens} tokens, decay weight ${(typeof seg.decay_weight === "number"
+            ? seg.decay_weight.toFixed(2)
+            : "–")}`;
+      const body = seg.content || seg.preview || "(no content)";
+      selectedPanelEl.textContent = `${header}\n\n${body}`;
+
+      // Highlight block in bar
+      Array.from(barEl.children).forEach((child) => {
+        if (child.dataset && child.dataset.segId === segId) {
+          child.classList.add("selected");
+        } else {
+          child.classList.remove("selected");
+        }
+      });
+
+      // Highlight row in table (optional: just visual)
+      Array.from(segTableEl.children).forEach((row) => {
+        if (row.dataset && row.dataset.segId === segId) {
+          row.classList.add("bg-slate-50");
+        } else {
+          row.classList.remove("bg-slate-50");
+        }
+      });
+    }
+
+    function segClass(type) {
+      switch (type) {
+        case "system":
+          return "seg-system";
+        case "user":
+          return "seg-user";
+        case "assistant":
+          return "seg-assistant";
+        case "web":
+          return "seg-web";
+        case "retrieved":
+          return "seg-retrieved";
+        default:
+          return "seg-other";
+      }
+    }
+
+    function segBadgeClass(type) {
+      switch (type) {
+        case "system":
+          return "bg-gray-100 text-gray-800 border border-gray-200";
+        case "user":
+          return "bg-blue-100 text-blue-800 border border-blue-200";
+        case "assistant":
+          return "bg-emerald-100 text-emerald-800 border border-emerald-200";
+        case "web":
+          return "bg-orange-100 text-orange-800 border border-orange-200";
+        case "retrieved":
+          return "bg-pink-100 text-pink-800 border border-pink-200";
+        default:
+          return "bg-violet-100 text-violet-800 border border-violet-200";
+      }
+    }
+
+    // Estado inicial vacío
+    renderEmpty();
+  </script>
+</body>
+</html>

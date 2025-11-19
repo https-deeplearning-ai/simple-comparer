@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>{{ app_name }} – Prompt Evaluator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <div class="max-w-5xl mx-auto p-6">
+    <!-- Header -->
+    <header class="mb-6 flex flex-col sm:flex-row items-center sm:items-end justify-between gap-3">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center shadow-md">
+          <span class="text-white font-bold text-xl">P</span>
+        </div>
+        <div>
+          <h1 class="text-3xl font-extrabold tracking-tight text-gray-900">
+            Prompt Quality Evaluator <span class="text-emerald-600">– OpenAI</span>
+          </h1>
+          <p class="text-gray-600 text-sm sm:text-base mt-1">
+            Analyze prompt clarity, specificity, structure, and tone, and compare before/after revisions.
+          </p>
+        </div>
+      </div>
+    </header>
+
+    <!-- Input card -->
+    <section class="bg-white rounded-2xl shadow p-5 border border-gray-100">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <!-- Original prompt -->
+        <div>
+          <label for="prompt-original" class="block text-sm font-medium text-gray-700 mb-1">
+            Original prompt
+          </label>
+          <textarea
+            id="prompt-original"
+            rows="5"
+            class="w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm p-3"
+            placeholder="Describe the task you would give the model..."
+          ></textarea>
+        </div>
+
+        <!-- Revised prompt -->
+        <div>
+          <label for="prompt-revised" class="block text-sm font-medium text-gray-700 mb-1">
+            Revised prompt (optional)
+          </label>
+          <textarea
+            id="prompt-revised"
+            rows="5"
+            class="w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm p-3"
+            placeholder="Paste an improved version to compare..."
+          ></textarea>
+        </div>
+      </div>
+
+      <!-- Model + example prompts -->
+      <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <!-- Model selector -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Evaluation model
+          </label>
+          <select
+            id="eval-model"
+            class="w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm p-2.5"
+          >
+            <option value="gpt-4.1-mini" selected>gpt-4.1-mini (fast, default)</option>
+            <option value="gpt-4o-mini">gpt-4o-mini (strong)</option>
+            <option value="gpt-4.1">gpt-4.1 (reasoning)</option>
+            <option value="gpt-4o">gpt-4o (highest quality)</option>
+          </select>
+          <p class="mt-1 text-[11px] text-gray-500">
+            The model scores the prompt and explains what helps or hurts its quality.
+          </p>
+        </div>
+
+        <!-- Example prompts -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Example prompt pairs (original + improved)
+          </label>
+          <select
+            id="example-prompts"
+            class="w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm p-2.5"
+          >
+            <option value="">-- choose an example --</option>
+            <option value="vague-ai">Very vague vs improved (AI intro)</option>
+            <option value="linear-regression">Teaching linear regression</option>
+            <option value="article-summary">Article summarization</option>
+            <option value="code-refactor">Coding / refactor request</option>
+            <option value="csv-analysis">CSV data analysis task</option>
+          </select>
+          <p class="mt-1 text-[11px] text-gray-500">
+            Selecting an example will fill both the original and improved prompt fields.
+          </p>
+        </div>
+      </div>
+
+      <div class="mt-4 flex items-center justify-between gap-3">
+        <button
+          id="btn-evaluate"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 text-sm font-medium shadow-sm disabled:opacity-60 disabled:cursor-default"
+        >
+          <span>Evaluate prompt quality</span>
+        </button>
+        <div
+          id="status"
+          class="text-xs text-gray-500 min-h-[1.5rem] text-right"
+        ></div>
+      </div>
+    </section>
+
+    <!-- Results: scores & comparison -->
+    <section class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <!-- Original prompt score -->
+      <div class="bg-white rounded-2xl shadow p-5 border border-gray-100">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-semibold text-gray-800 uppercase tracking-wide">
+            Original prompt score
+          </h2>
+          <span id="original-score-badge" class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] bg-gray-100 text-gray-700 border border-gray-200">
+            Score: –
+          </span>
+        </div>
+        <div class="space-y-3 text-sm">
+          <div class="flex items-center justify-between">
+            <span class="text-xs uppercase tracking-wide text-gray-500">Overall</span>
+            <span id="original-score-big" class="text-3xl font-extrabold text-emerald-600">–</span>
+          </div>
+          <div id="original-dimensions" class="space-y-2 text-xs"></div>
+          <div>
+            <h3 class="text-xs font-semibold text-gray-700 mb-1">Explanation</h3>
+            <p id="original-explanation" class="text-xs text-gray-600 whitespace-pre-wrap">
+              –
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Revised prompt / comparison -->
+      <div class="bg-white rounded-2xl shadow p-5 border border-gray-100">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-semibold text-gray-800 uppercase tracking-wide">
+            Revised prompt & improvement
+          </h2>
+          <span id="delta-badge" class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] bg-gray-100 text-gray-700 border border-gray-200">
+            Δ Score: –
+          </span>
+        </div>
+        <div id="revised-content" class="space-y-3 text-sm text-gray-400">
+          <p class="text-xs">
+            Add a revised prompt on the right and evaluate to see the comparison.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Suggestions panel -->
+    <section class="mt-6">
+      <div class="bg-white rounded-2xl shadow p-5 border border-gray-100">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-semibold text-gray-800 uppercase tracking-wide">
+            Targeted suggestions
+          </h2>
+          <span class="text-[11px] text-gray-400">
+            Concrete tips to improve clarity, specificity, and structure.
+          </span>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
+          <div>
+            <h3 class="text-xs font-semibold text-gray-700 mb-1">For original prompt</h3>
+            <ul id="original-suggestions" class="list-disc list-inside text-xs text-gray-700 space-y-1"></ul>
+          </div>
+          <div>
+            <h3 class="text-xs font-semibold text-gray-700 mb-1">For revised prompt</h3>
+            <ul id="revised-suggestions" class="list-disc list-inside text-xs text-gray-700 space-y-1"></ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const originalEl = document.getElementById("prompt-original");
+    const revisedEl = document.getElementById("prompt-revised");
+    const modelEl = document.getElementById("eval-model");
+    const exampleEl = document.getElementById("example-prompts");
+    const btnEvaluate = document.getElementById("btn-evaluate");
+    const statusEl = document.getElementById("status");
+
+    const originalScoreBadge = document.getElementById("original-score-badge");
+    const originalScoreBig = document.getElementById("original-score-big");
+    const originalDimensions = document.getElementById("original-dimensions");
+    const originalExplanation = document.getElementById("original-explanation");
+
+    const revisedContent = document.getElementById("revised-content");
+    const deltaBadge = document.getElementById("delta-badge");
+
+    const originalSuggestions = document.getElementById("original-suggestions");
+    const revisedSuggestions = document.getElementById("revised-suggestions");
+
+    // -------- Example prompts (original + improved) --------
+    const EXAMPLES = {
+      "vague-ai": {
+        label: "Very vague vs improved (AI intro)",
+        original: "Tell me about AI.",
+        revised:
+`You are a friendly AI tutor.
+
+Task:
+Explain what Artificial Intelligence (AI) is to a non-technical adult.
+
+Requirements:
+- Use at most 3 short bullet points (max 20 words each).
+- Avoid equations or heavy jargon.
+- Include one simple real-life example (e.g., recommendation system, virtual assistant).`
+      },
+      "linear-regression": {
+        label: "Teaching linear regression",
+        original:
+"Explain linear regression.",
+        revised:
+`You are a data science tutor helping a beginner.
+
+Task:
+Explain linear regression in simple terms.
+
+Requirements:
+- Start with 2–3 sentences explaining the intuition (line through data points).
+- Then give 3 bullet points: what it needs, what it outputs, and one common use case.
+- Finish with a tiny numeric example (X, y with 3 points) and explain what the model learns.`
+      },
+      "article-summary": {
+        label: "Article summarization",
+        original:
+"Summarize this article.",
+        revised:
+`You are an academic assistant.
+
+Task:
+Summarize the article I will paste after this prompt.
+
+Requirements:
+- Length: 120–150 words.
+- Focus on: research question, method (1 sentence), key findings, and main limitation.
+- Use neutral, objective language.
+- Output format: one coherent paragraph, no bullet points.`
+      },
+      "code-refactor": {
+        label: "Coding / refactor request",
+        original:
+"Write code that sorts a list.",
+        revised:
+`You are a senior Python engineer.
+
+Task:
+Refactor the function I will paste after this prompt.
+
+Requirements:
+- Keep the same behavior.
+- Improve readability and add concise inline comments.
+- Use type hints where appropriate.
+- Return only a single Python code block, no extra explanation.`
+      },
+      "csv-analysis": {
+        label: "CSV data analysis task",
+        original:
+"Analyze my CSV and tell me something interesting.",
+        revised:
+`You are a data analyst.
+
+Context:
+I will provide a CSV with columns: date, country, product, revenue.
+
+Task:
+- Propose 3 high-level insights you would try to extract from this data.
+- For each insight, describe:
+  - The exact metric or chart you would compute.
+  - Why it might be useful for a business stakeholder.
+- Answer in numbered bullet points.`
+      }
+    };
+
+    // Load example (both original + improved)
+    exampleEl.addEventListener("change", (e) => {
+      const key = e.target.value;
+      if (!key || !EXAMPLES[key]) {
+        return;
+      }
+      const ex = EXAMPLES[key];
+      originalEl.value = ex.original;
+      revisedEl.value = ex.revised;
+    });
+
+    function dimBar(label, value) {
+      const clamped = Math.max(1, Math.min(5, value || 0));
+      const pct = (clamped / 5) * 100;
+      return `
+        <div>
+          <div class="flex justify-between text-[11px] text-gray-600 mb-0.5">
+            <span>${label}</span><span>${clamped}/5</span>
+          </div>
+          <div class="w-full h-1.5 rounded-full bg-gray-100 overflow-hidden">
+            <div class="h-full rounded-full bg-emerald-500" style="width: ${pct}%"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    btnEvaluate.addEventListener("click", async () => {
+      const prompt = (originalEl.value || "").trim();
+      const revised = (revisedEl.value || "").trim();
+      const model = modelEl.value || "gpt-4.1-mini";
+
+      if (!prompt) {
+        statusEl.textContent = "Please enter at least an original prompt.";
+        statusEl.classList.remove("text-red-600");
+        statusEl.classList.add("text-gray-500");
+        return;
+      }
+
+      btnEvaluate.disabled = true;
+      statusEl.textContent = "Evaluating prompt...";
+      statusEl.classList.remove("text-red-600");
+      statusEl.classList.add("text-gray-500");
+
+      try {
+        const res = await fetch("/prompt-eval/analyze", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            prompt,
+            revised_prompt: revised || null,
+            model
+          })
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        renderOriginal(data.original);
+        renderRevised(data.revised, data.delta_score);
+        statusEl.textContent = "Done.";
+        statusEl.classList.remove("text-red-600");
+        statusEl.classList.add("text-gray-500");
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "Error: " + err.message;
+        statusEl.classList.remove("text-gray-500");
+        statusEl.classList.add("text-red-600");
+      } finally {
+        btnEvaluate.disabled = false;
+      }
+    });
+
+    function renderOriginal(orig) {
+      if (!orig) return;
+
+      originalScoreBig.textContent = orig.score ?? "–";
+      originalScoreBadge.textContent = `Score: ${orig.score ?? "–"}`;
+
+      if (orig.score >= 80) {
+        originalScoreBig.className = "text-3xl font-extrabold text-emerald-600";
+      } else if (orig.score >= 60) {
+        originalScoreBig.className = "text-3xl font-extrabold text-yellow-500";
+      } else {
+        originalScoreBig.className = "text-3xl font-extrabold text-red-500";
+      }
+
+      const dims = orig.dimensions || {};
+      originalDimensions.innerHTML = [
+        dimBar("Clarity", dims.clarity),
+        dimBar("Specificity", dims.specificity),
+        dimBar("Structure", dims.structure),
+        dimBar("Tone", dims.tone),
+        dimBar("Safety", dims.safety),
+      ].join("");
+
+      originalExplanation.textContent = orig.explanation || "–";
+
+      // Suggestions original
+      originalSuggestions.innerHTML = "";
+      if (orig.suggestions && orig.suggestions.length) {
+        orig.suggestions.forEach((s) => {
+          const li = document.createElement("li");
+          li.textContent = s;
+          originalSuggestions.appendChild(li);
+        });
+      } else {
+        const li = document.createElement("li");
+        li.className = "text-gray-400";
+        li.textContent = "No suggestions were generated.";
+        originalSuggestions.appendChild(li);
+      }
+    }
+
+    function renderRevised(rev, delta) {
+      revisedContent.innerHTML = "";
+      revisedSuggestions.innerHTML = "";
+
+      if (!rev) {
+        deltaBadge.textContent = "Δ Score: –";
+        deltaBadge.className = "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] bg-gray-100 text-gray-700 border border-gray-200";
+
+        const p = document.createElement("p");
+        p.className = "text-xs text-gray-400";
+        p.textContent = "Add a revised prompt on the right and evaluate to see the comparison.";
+        revisedContent.appendChild(p);
+
+        const li = document.createElement("li");
+        li.className = "text-gray-400";
+        li.textContent = "No revised prompt suggestions yet.";
+        revisedSuggestions.appendChild(li);
+        return;
+      }
+
+      // Delta badge
+      if (typeof delta === "number") {
+        const sign = delta > 0 ? "+" : "";
+        deltaBadge.textContent = `Δ Score: ${sign}${delta}`;
+        if (delta > 0) {
+          deltaBadge.className = "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-200";
+        } else if (delta < 0) {
+          deltaBadge.className = "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] bg-red-50 text-red-700 border border-red-200";
+        } else {
+          deltaBadge.className = "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] bg-gray-100 text-gray-700 border border-gray-200";
+        }
+      } else {
+        deltaBadge.textContent = "Δ Score: –";
+        deltaBadge.className = "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] bg-gray-100 text-gray-700 border border-gray-200";
+      }
+
+      // Revised card content
+      const scoreRow = document.createElement("div");
+      scoreRow.className = "flex items-center justify-between mb-2";
+      const label = document.createElement("span");
+      label.className = "text-xs uppercase tracking-wide text-gray-500";
+      label.textContent = "Revised overall score";
+      const value = document.createElement("span");
+      value.className = "text-3xl font-extrabold text-emerald-600";
+      value.textContent = rev.score ?? "–";
+      scoreRow.appendChild(label);
+      scoreRow.appendChild(value);
+
+      const dimsDiv = document.createElement("div");
+      dimsDiv.className = "space-y-2 text-xs";
+      const dims = rev.dimensions || {};
+      dimsDiv.innerHTML = [
+        dimBar("Clarity", dims.clarity),
+        dimBar("Specificity", dims.specificity),
+        dimBar("Structure", dims.structure),
+        dimBar("Tone", dims.tone),
+        dimBar("Safety", dims.safety),
+      ].join("");
+
+      const explDiv = document.createElement("div");
+      explDiv.className = "mt-2";
+      explDiv.innerHTML = `
+        <h3 class="text-xs font-semibold text-gray-700 mb-1">Explanation</h3>
+        <p class="text-xs text-gray-600 whitespace-pre-wrap">${rev.explanation || "–"}</p>
+      `;
+
+      revisedContent.appendChild(scoreRow);
+      revisedContent.appendChild(dimsDiv);
+      revisedContent.appendChild(explDiv);
+
+      // Suggestions revised
+      if (rev.suggestions && rev.suggestions.length) {
+        rev.suggestions.forEach((s) => {
+          const li = document.createElement("li");
+          li.textContent = s;
+          revisedSuggestions.appendChild(li);
+        });
+      } else {
+        const li = document.createElement("li");
+        li.className = "text-gray-400";
+        li.textContent = "No suggestions were generated.";
+        revisedSuggestions.appendChild(li);
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,581 +1,91 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>{{ app_name }}</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Chart.js core -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Venn plugin for Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-venn@4"></script>
+<meta charset="UTF-8">
+<title>LLM Tools Dashboard</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: "Inter", sans-serif;
+    background: #f0f2f5;
+}
+
+header {
+    background: white;
+    padding: 15px 25px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.tabs {
+    display: flex;
+    gap: 10px;
+    padding: 15px 25px;
+    background: #ffffff;
+    border-bottom: 1px solid #eee;
+}
+
+.tab {
+    padding: 10px 18px;
+    background: #eaeaea;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: .25s;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.tab.active {
+    background: #6c5ce7;
+    color: white;
+}
+
+#content {
+    padding: 20px;
+}
+
+iframe {
+    width: 100%;
+    height: 83vh;
+    border: none;
+    border-radius: 18px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+    background: white;
+}
+</style>
 </head>
-<body class="bg-gray-50 text-gray-900">
-  <div class="max-w-7xl mx-auto p-6">
-  <header class="mb-8 flex flex-col sm:flex-row items-center sm:items-end justify-between">
-    <div class="flex items-center gap-4">
-      <img src="https://coursera-university-assets.s3.amazonaws.com/b4/5cb90bb92f420b99bf323a0356f451/Icon.png"
-          alt="DeepLearning.AI logo"
-          class="w-14 h-14 rounded-xl shadow-md border border-gray-200" />
-      <div>
-        <h1 class="text-4xl font-extrabold tracking-tight text-gray-900">
-          LLM Duel <span class="text-indigo-600">– OpenAI</span>
-        </h1>
-        <p class="text-gray-600 text-sm sm:text-base mt-1">
-          Compare OpenAI models side-by-side, evaluate topics, and visualize automatic judge verdicts.
-        </p>
-      </div>
-    </div>
-    <div class="mt-4 sm:mt-0 text-sm text-gray-500">
-      <span class="font-medium text-indigo-600">Powered by DeepLearning.AI</span>
-    </div>
-  </header>
 
-    <!-- Input Panel -->
-    <section class="bg-white rounded-2xl shadow p-5">
-      <label class="block text-sm font-medium text-gray-700 mb-1">Prompt</label>
-      <textarea id="prompt" rows="4"
-        class="w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-      >Write a 5-bullet summary about the impact of AI in higher education.</textarea>
+<body>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Task Type</label>
-          <select id="task_type"
-            class="w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-            <option value="factual">Factual</option>
-            <option value="creative">Creative</option>
-            <option value="reasoning">Reasoning</option>
-            <option value="code">Code</option>
-          </select>
-        </div>
-        <div class="md:col-span-2 text-sm text-gray-500 flex items-end">
-          Tip: Use the same prompt and vary temperature or model.
-        </div>
-      </div>
+<header>
+    <h1>🧰 LLM Tools Dashboard</h1>
+</header>
 
-      <!-- Models -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-        <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
-          <h3 class="font-semibold mb-3">Model A</h3>
-          <div class="grid grid-cols-3 gap-3">
-            <div class="col-span-3">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Model</label>
-              <select id="a_model"
-                class="w-full rounded-lg border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-              </select>
-              <div id="a_price" class="text-xs text-gray-500 mt-1"></div>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Temperature</label>
-              <input id="a_temp" value="0.7" class="w-full rounded-lg border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"/>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Max tokens</label>
-              <input id="a_max" value="512" class="w-full rounded-lg border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"/>
-            </div>
-            <div class="text-sm text-gray-500 flex items-end">Pick from the curated model pool.</div>
-          </div>
-        </div>
+<!-- TABS -->
+<div class="tabs">
+    <div class="tab active" data-url="/duel">⚔️ Duel</div>
+    <div class="tab" data-url="/tool-router">🔍 Tool Router</div>
+    <div class="tab" data-url="/prompt-eval">⭐ Prompt Evaluator</div>
+    <div class="tab" data-url="/context-viz">🧠 Context Window</div>
+</div>
 
-        <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
-          <h3 class="font-semibold mb-3">Model B</h3>
-          <div class="grid grid-cols-3 gap-3">
-            <div class="col-span-3">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Model</label>
-              <select id="b_model"
-                class="w-full rounded-lg border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-              </select>
-              <div id="b_price" class="text-xs text-gray-500 mt-1"></div>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Temperature</label>
-              <input id="b_temp" value="0.7" class="w-full rounded-lg border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"/>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Max tokens</label>
-              <input id="b_max" value="512" class="w-full rounded-lg border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"/>
-            </div>
-            <div class="text-sm text-gray-500 flex items-end">Try different temperatures to see variation.</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="mt-6 flex gap-3">
-        <button id="btnRun"
-          class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700">
-          <span>Compare</span>
-        </button>
-        <a href="/export.csv" class="px-4 py-2 rounded-xl border text-gray-700 hover:bg-gray-100">Export CSV</a>
-      </div>
-    </section>
-
-    <!-- Results -->
-    <section id="results" class="mt-6 hidden">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <article class="bg-white rounded-2xl shadow p-5">
-          <div class="flex items-center justify-between mb-3">
-            <h3 id="a_name" class="font-semibold text-lg">Model A</h3>
-            <div id="a_metrics" class="flex flex-wrap gap-2 text-xs"></div>
-          </div>
-          <pre id="a_answer" class="whitespace-pre-wrap text-sm leading-6"></pre>
-        </article>
-
-        <article class="bg-white rounded-2xl shadow p-5">
-          <div class="flex items-center justify-between mb-3">
-            <h3 id="b_name" class="font-semibold text-lg">Model B</h3>
-            <div id="b_metrics" class="flex flex-wrap gap-2 text-xs"></div>
-          </div>
-          <pre id="b_answer" class="whitespace-pre-wrap text-sm leading-6"></pre>
-        </article>
-      </div>
-
-      <!-- Judge -->
-      <div class="bg-white rounded-2xl shadow p-5 mt-4">
-        <div class="flex items-center justify-between">
-          <h4 class="font-semibold">Automatic Judge</h4>
-          <div class="flex gap-2">
-            <button id="btnJudge" class="px-3 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800">Ask the Judge</button>
-          </div>
-        </div>
-
-        <!-- Winner & Rationale -->
-        <div id="winner_badge" class="mt-3 text-sm"></div>
-        <pre id="rationale" class="mt-2 text-sm text-gray-800 whitespace-pre-wrap"></pre>
-
-        <!-- Scores: Table + Horizontal Bars + Compact Radar -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-          <div class="bg-gray-50 rounded-xl p-4 border lg:col-span-1">
-            <h5 class="font-semibold mb-2">Scores Table</h5>
-            <div id="scores_table" class="overflow-x-auto"></div>
-          </div>
-          <div class="bg-gray-50 rounded-xl p-4 border lg:col-span-1">
-            <h5 class="font-semibold mb-2">Scores Comparison (Horizontal)</h5>
-            <canvas id="scoresBar" height="220"></canvas>
-          </div>
-          <div class="bg-gray-50 rounded-xl p-4 border lg:col-span-1">
-            <h5 class="font-semibold mb-2">Scores Radar (Compact)</h5>
-            <div class="w-56 h-56 mx-auto">
-              <canvas id="radarChart" width="200" height="200"></canvas>
-            </div>
-          </div>
-        </div>
-
-        <!-- VENN + Extra Plots -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-          <div class="bg-gray-50 rounded-xl p-4 border">
-            <h5 class="font-semibold mb-2">Topics Venn</h5>
-            <canvas id="vennChart" height="200"></canvas>
-            <div class="mt-2 text-xs text-gray-600">
-              <strong>Legend:</strong> A-only, Shared, B-only
-            </div>
-          </div>
-          <div class="bg-gray-50 rounded-xl p-4 border">
-            <h5 class="font-semibold mb-2">Quality vs Cost</h5>
-            <canvas id="qualityCostChart" height="200"></canvas>
-            <div class="mt-2 text-xs text-gray-600">Average score (1–5) vs USD cost.</div>
-          </div>
-          <div class="bg-gray-50 rounded-xl p-4 border">
-            <h5 class="font-semibold mb-2">Latency vs Tokens (bubble=size=Cost)</h5>
-            <canvas id="latencyScatter" height="200"></canvas>
-            <div class="mt-2 text-xs text-gray-600">Performance vs output size.</div>
-          </div>
-        </div>
-
-        <!-- Topics detail -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-          <div>
-            <h5 class="font-semibold mb-2">Topics — Model A</h5>
-            <ul id="topics_A" class="list-disc list-inside text-sm"></ul>
-            <h6 class="mt-2 text-xs text-gray-500">Missing A</h6>
-            <ul id="missing_A" class="list-disc list-inside text-xs text-gray-600"></ul>
-            <div id="coverage_A" class="mt-2 text-xs text-gray-700"></div>
-          </div>
-          <div>
-            <h5 class="font-semibold mb-2">Shared Topics</h5>
-            <ul id="topics_shared" class="list-disc list-inside text-sm"></ul>
-          </div>
-          <div>
-            <h5 class="font-semibold mb-2">Topics — Model B</h5>
-            <ul id="topics_B" class="list-disc list-inside text-sm"></ul>
-            <h6 class="mt-2 text-xs text-gray-500">Missing B</h6>
-            <ul id="missing_B" class="list-disc list-inside text-xs text-gray-600"></ul>
-            <div id="coverage_B" class="mt-2 text-xs text-gray-700"></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- History -->
-    <section class="mt-6">
-      <h4 class="font-semibold mb-2">History</h4>
-      <div id="history" class="text-sm text-gray-700"></div>
-    </section>
-  </div>
+<!-- MAIN CONTENT -->
+<div id="content">
+    <iframe id="frame" src="/duel"></iframe>
+</div>
 
 <script>
-const $ = (id) => document.getElementById(id);
-let lastResult = null;
-let MODEL_POOL = [];
-let vennChart = null, qcChart = null, latChart = null, barChart = null, radarChart = null;
+const tabs = document.querySelectorAll(".tab");
+const frame = document.getElementById("frame");
 
-function chip(text){
-  return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full bg-gray-100 border text-gray-800">${text}</span>`;
-}
-function metricsChips(m){
-  return [
-    chip(`lat ${m.latency_ms}ms`),
-    chip(`tok in/out ${m.tokens_in}/${m.tokens_out}`),
-    chip(`$${m.cost_usd}`),
-    chip(`len ${m.char_len}`),
-    chip(`para ${m.paragraphs}`),
-    chip(`urls ${m.url_count}`),
-    chip(`overlap ${m.instruction_overlap}`)
-  ].join(" ");
-}
-
-// ------- Model pool ----------
-async function loadModelPool() {
-  const r = await fetch('/models');
-  const data = await r.json();
-  MODEL_POOL = (data && data.models) || [];
-
-  const mkOpts = () =>
-    MODEL_POOL.map(m => `<option value="${m.id}">${m.label} — ${m.id}</option>`).join("");
-
-  $("a_model").innerHTML = mkOpts();
-  $("b_model").innerHTML = mkOpts();
-
-  const defA = MODEL_POOL.find(m => m.id === "gpt-4o-mini") || MODEL_POOL[0];
-  const defB = MODEL_POOL.find(m => m.id === "gpt-4.1-mini") || MODEL_POOL[Math.min(1, MODEL_POOL.length-1)];
-  if (defA) $("a_model").value = defA.id;
-  if (defB) $("b_model").value = defB.id;
-
-  updatePriceChip("a");
-  updatePriceChip("b");
-}
-function getModelMeta(id) { return MODEL_POOL.find(m => m.id === id); }
-function updatePriceChip(which) {
-  const sel = $(which + "_model");
-  const price = $(which + "_price");
-  const meta = getModelMeta(sel.value);
-  if (!meta) { price.textContent = ""; return; }
-  const pin = meta.pricing?.in ?? 0;
-  const pout = meta.pricing?.out ?? 0;
-  price.textContent = `Pricing: $${pin}/1k input tokens · $${pout}/1k output tokens`;
-}
-["a_model","b_model"].forEach(id => {
-  document.addEventListener("change", (ev) => {
-    if (ev.target && ev.target.id === id) {
-      updatePriceChip(id.startsWith("a") ? "a" : "b");
-    }
-  });
+tabs.forEach(tab => {
+    tab.addEventListener("click", () => {
+        document.querySelector(".tab.active").classList.remove("active");
+        tab.classList.add("active");
+        frame.src = tab.dataset.url;
+    });
 });
-
-// ------- Compare ----------
-function resetJudgeUI(){
-  $("winner_badge").innerHTML = "";
-  $("rationale").textContent = "";
-  ["topics_A","topics_B","topics_shared","missing_A","missing_B","coverage_A","coverage_B"].forEach(id => $(id).innerHTML = "");
-  if (vennChart) { vennChart.destroy(); vennChart = null; }
-  if (qcChart) { qcChart.destroy(); qcChart = null; }
-  if (latChart) { latChart.destroy(); latChart = null; }
-  if (barChart) { barChart.destroy(); barChart = null; }
-  if (radarChart) { radarChart.destroy(); radarChart = null; }
-  $("scores_table").innerHTML = "";
-}
-
-async function compare() {
-  $("results").classList.add("hidden");
-  resetJudgeUI();
-
-  const payload = {
-    prompt: $("prompt").value,
-    task_type: $("task_type").value,
-    a: { model: $("a_model").value, temperature: parseFloat($("a_temp").value), max_tokens: parseInt($("a_max").value) },
-    b: { model: $("b_model").value, temperature: parseFloat($("b_temp").value), max_tokens: parseInt($("b_max").value) }
-  };
-  $("btnRun").disabled = true;
-  $("btnRun").classList.add("opacity-50");
-  try {
-    const r = await fetch('/compare', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
-    if(!r.ok){ $("results").classList.remove("hidden"); $("a_answer").textContent = await r.text(); return; }
-    const data = await r.json();
-    lastResult = data;
-
-    $("a_name").textContent = `A — ${data.model_a.name}`;
-    $("b_name").textContent = `B — ${data.model_b.name}`;
-    $("a_metrics").innerHTML = metricsChips(data.model_a.metrics);
-    $("b_metrics").innerHTML = metricsChips(data.model_b.metrics);
-
-    const esc = (t)=> (t||"").replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
-    $("a_answer").innerHTML = esc(data.model_a.answer);
-    $("b_answer").innerHTML = esc(data.model_b.answer);
-
-    $("results").classList.remove("hidden");
-    await loadHistory();
-  } catch(e){
-    alert("Error: " + e);
-  } finally {
-    $("btnRun").disabled = false;
-    $("btnRun").classList.remove("opacity-50");
-  }
-}
-
-// ------- Judge ----------
-function winnerBadge(text){
-  const color = text.includes("Option 1") ? "bg-green-100 text-green-800 border-green-300"
-              : text.includes("Option 2") ? "bg-blue-100 text-blue-800 border-blue-300"
-              : "bg-yellow-100 text-yellow-800 border-yellow-300";
-  return `<span class="inline-block px-2.5 py-1 rounded-full border ${color} text-sm font-medium">🏆 ${text}</span>`;
-}
-function renderList(ulId, arr){
-  $(ulId).innerHTML = (arr && arr.length) ? arr.map(x=>`<li>${x}</li>`).join("") : `<li class="text-gray-400">—</li>`;
-}
-function renderCoverage(id, cov){
-  $(id).innerHTML = `<span class="text-xs">Coverage:</span> <span class="font-semibold">${(cov*100).toFixed(0)}%</span>`;
-}
-function avgQuality(o){
-  const keys = ["clarity","fit","structure","safety","correctness"];
-  const vals = keys.map(k => (o && typeof o[k] === "number") ? o[k] : null).filter(v => v!==null);
-  if(!vals.length) return 0;
-  return vals.reduce((a,b)=>a+b,0)/vals.length;
-}
-
-function makeRadar(J){
-  const labels = ["Clarity","Task Fit","Structure","Safety","Correctness"];
-  const toVal = (o,k)=> (k==="Correctness" && (o.correctness==null)) ? 0 : (o[k.toLowerCase()] ?? 0);
-  const A = labels.map(k => toVal(J.o1 || {}, k));
-  const B = labels.map(k => toVal(J.o2 || {}, k));
-
-  const ctx = document.getElementById('radarChart').getContext('2d');
-  radarChart = new Chart(ctx, {
-    type: 'radar',
-    data: {
-      labels,
-      datasets: [
-        { label: 'Model A', data: A, fill: true },
-        { label: 'Model B', data: B, fill: true }
-      ]
-    },
-    options: {
-      responsive: false,               // compacto, tamaño fijo
-      plugins: { legend: { display: false } },
-      scales: {
-        r: {
-          suggestedMin: 0, suggestedMax: 5, ticks: { display: false },
-          pointLabels: { display: true, font: { size: 10 } }
-        }
-      }
-    }
-  });
-}
-
-function makeVenn(topicsA, topicsB){
-  const setA = new Set(topicsA || []);
-  const setB = new Set(topicsB || []);
-  const inter = [...setA].filter(x => setB.has(x));
-  const onlyA = [...setA].filter(x => !setB.has(x));
-  const onlyB = [...setB].filter(x => !setA.has(x));
-  const ctx = document.getElementById('vennChart').getContext('2d');
-  vennChart = new Chart(ctx, {
-    type: 'venn',
-    data: {
-      labels: ['A', 'B', 'A∩B'],
-      datasets: [{
-        label: 'Topics',
-        data: [
-          { sets: ['A'], value: Math.max(1, onlyA.length), label: onlyA.join(', ') || '—' },
-          { sets: ['B'], value: Math.max(1, onlyB.length), label: onlyB.join(', ') || '—' },
-          { sets: ['A','B'], value: Math.max(1, inter.length), label: inter.join(', ') || '—' },
-        ]
-      }]
-    },
-    options: {
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: (ctx) => ctx.raw?.label || '' } }
-      }
-    }
-  });
-  renderList("topics_A", topicsA || []);
-  renderList("topics_B", topicsB || []);
-  renderList("topics_shared", inter);
-}
-
-function makeQualityCost(J){
-  const aQ = avgQuality(J.o1 || {}), bQ = avgQuality(J.o2 || {});
-  const aC = (lastResult?.model_a?.metrics?.cost_usd) ?? 0;
-  const bC = (lastResult?.model_b?.metrics?.cost_usd) ?? 0;
-  const ctx = document.getElementById('qualityCostChart').getContext('2d');
-  qcChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: ['Model A','Model B'],
-      datasets: [
-        { label: 'Avg Quality (1–5)', data: [aQ, bQ], yAxisID: 'y1' },
-        { label: 'Cost (USD)', data: [aC, bC], yAxisID: 'y2' }
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { position: 'top' } },
-      scales: {
-        y1: { type: 'linear', position: 'left', suggestedMin: 0, suggestedMax: 5, title: { display: true, text: 'Quality' } },
-        y2: { type: 'linear', position: 'right', suggestedMin: 0, title: { display: true, text: 'USD' }, grid: { drawOnChartArea: false } }
-      }
-    }
-  });
-}
-
-function makeLatencyScatter(){
-  const a = lastResult.model_a.metrics;
-  const b = lastResult.model_b.metrics;
-  const ctx = document.getElementById('latencyScatter').getContext('2d');
-  latChart = new Chart(ctx, {
-    type: 'scatter',
-    data: {
-      datasets: [
-        { label: 'A', data: [{ x: a.latency_ms, y: a.tokens_out, r: 8 + Math.min(20, a.cost_usd*30) }], showLine: false,
-          pointRadius: (ctx)=> ctx.raw?.r || 8 },
-        { label: 'B', data: [{ x: b.latency_ms, y: b.tokens_out, r: 8 + Math.min(20, b.cost_usd*30) }], showLine: false,
-          pointRadius: (ctx)=> ctx.raw?.r || 8 }
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { position: 'top' } },
-      scales: {
-        x: { title: { display: true, text: 'Latency (ms)' } },
-        y: { title: { display: true, text: 'Output tokens (approx)' } }
-      }
-    }
-  });
-}
-
-function makeScoresBar(J){
-  const labels = ["Clarity","Task Fit","Structure","Safety","Correctness"];
-  const toVal = (o,k)=> (k==="Correctness" && (o.correctness==null)) ? 0 : (o[k.toLowerCase()] ?? 0);
-  const A = labels.map(k => toVal(J.o1 || {}, k));
-  const B = labels.map(k => toVal(J.o2 || {}, k));
-  const ctx = document.getElementById('scoresBar').getContext('2d');
-  barChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [
-        { label: 'Model A', data: A },
-        { label: 'Model B', data: B }
-      ]
-    },
-    options: {
-      responsive: true,
-      indexAxis: 'y',
-      plugins: { legend: { position: 'top' } },
-      scales: { x: { suggestedMin: 0, suggestedMax: 5, title: { display: true, text: 'Score' } } }
-    }
-  });
-
-  // Table
-  const row = (name, a, b) => `<tr class="border-b">
-    <td class="px-3 py-2">${name}</td>
-    <td class="px-3 py-2 text-center">${a.toFixed(2)}</td>
-    <td class="px-3 py-2 text-center">${b.toFixed(2)}</td>
-  </tr>`;
-  const html = `
-    <table class="min-w-full text-sm border border-gray-200 rounded-xl overflow-hidden">
-      <thead class="bg-gray-100">
-        <tr>
-          <th class="px-3 py-2 text-left">Metric</th>
-          <th class="px-3 py-2 text-center">A</th>
-          <th class="px-3 py-2 text-center">B</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${row("Clarity", A[0], B[0])}
-        ${row("Task Fit", A[1], B[1])}
-        ${row("Structure", A[2], B[2])}
-        ${row("Safety", A[3], B[3])}
-        ${row("Correctness", A[4], B[4])}
-      </tbody>
-    </table>`;
-  $("scores_table").innerHTML = html;
-}
-
-async function judge() {
-  if(!lastResult){ return }
-  const payload = {
-    prompt: lastResult.prompt,
-    task_type: lastResult.task_type,
-    answer_a: lastResult.model_a.answer,
-    answer_b: lastResult.model_b.answer
-  };
-  $("btnJudge").disabled = true;
-  $("btnJudge").classList.add("opacity-50");
-  try {
-    const r = await fetch('/judge', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
-    const J = await r.json();
-
-    $("winner_badge").innerHTML = (J.winner) ? winnerBadge(J.winner) : "";
-    $("rationale").textContent = J.rationale_short || "";
-
-    // Charts + tables
-    makeScoresBar(J);
-    makeRadar(J);  // 👈 radar compacto
-    makeVenn(J.topics_A || [], J.topics_B || []);
-    renderList("missing_A", J.missing_A || []);
-    renderList("missing_B", J.missing_B || []);
-    renderCoverage("coverage_A", J.coverage_A ?? 0);
-    renderCoverage("coverage_B", J.coverage_B ?? 0);
-    makeQualityCost(J);
-    makeLatencyScatter();
-
-    await loadHistory();
-  } catch(e){
-    alert("Error: " + e);
-  } finally {
-    $("btnJudge").disabled = false;
-    $("btnJudge").classList.remove("opacity-50");
-  }
-}
-
-// ------- History ----------
-async function loadHistory(){
-  const r = await fetch('/history');
-  const list = await r.json();
-  if(!list.length){ $("history").innerHTML = "<div class='text-gray-500'>No results yet.</div>"; return; }
-  let html = `<div class="overflow-x-auto">
-    <table class="min-w-full text-left border border-gray-200 rounded-xl overflow-hidden">
-      <thead class="bg-gray-100 text-gray-700">
-        <tr>
-          <th class="px-3 py-2">ID</th>
-          <th class="px-3 py-2">Task</th>
-          <th class="px-3 py-2">Model A</th>
-          <th class="px-3 py-2">Model B</th>
-          <th class="px-3 py-2">Winner (auto)</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y">
-  `;
-  for(const it of list.slice(-20).reverse()){
-    html += `
-      <tr class="hover:bg-gray-50">
-        <td class="px-3 py-2 text-xs">${it.id}</td>
-        <td class="px-3 py-2">${it.task_type}</td>
-        <td class="px-3 py-2 text-xs">${it.model_a.name}</td>
-        <td class="px-3 py-2 text-xs">${it.model_b.name}</td>
-        <td class="px-3 py-2">${(it.auto_judge && it.auto_judge.winner) ? it.auto_judge.winner : "-"}</td>
-      </tr>
-    `;
-  }
-  html += "</tbody></table></div>";
-  $("history").innerHTML = html;
-}
-
-// Bind events & init
-document.getElementById("btnRun").addEventListener("click", compare);
-document.getElementById("btnJudge").addEventListener("click", judge);
-loadModelPool().then(loadHistory);
 </script>
+
 </body>
 </html>
